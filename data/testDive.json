@@ -1,0 +1,40 @@
+{
+    "input":
+    [
+        {
+            "desc": "TRIMIX DIVE TO 80.5 MSW",
+            "gasmix_summary":[{"fraction_O2" : 0.15,
+                               "fraction_He" : 0.45,
+                               "fraction_N2" : 0.40}
+                             ],
+            "profile_codes":[
+                {
+                    "profile_code":1,
+                    "starting_depth":0,
+                    "ending_depth":80.5,
+                    "rate":23,
+                    "gasmix":1,
+                    "setpoint":0.7
+                },
+
+                {
+                    "profile_code":2,
+                    "depth":80.5,
+                    "run_time_at_end_of_segment":30,
+                    "gasmix":1,
+                    "setpoint":1.3
+                },
+
+                {
+                    "profile_code":99,
+                    "ascent_summary":[{ "starting_depth":80.5,
+                                        "gasmix":1,
+                                        "rate":-10,
+                                        "step_size":3,
+                                        "setpoint":1.6
+                                      }]
+                }],
+            "repetitive_code" : 0
+        }
+    ]
+}
