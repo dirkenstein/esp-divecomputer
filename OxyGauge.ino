@@ -19,11 +19,14 @@
 
 #include "FS.h"
 #include <stdarg.h>
-extern "C" {
 //#include <mcheck.h>
-#include <cont.h>
-  extern cont_t g_cont;
+
+extern "C" {
+  #include <cont.h>
+  extern cont_t * g_pcont;
+
 }
+
 #endif 
 
 #define DEBUG 
@@ -231,7 +234,7 @@ const u8g2_cb_t * orientations [] = {U8G2_R0, U8G2_R1, U8G2_R2, U8G2_R3};
 #define I2C_SPEED 100000
 #endif
 
-static const char ver [] PROGMEM  = "OxyGauge 1.0.19";
+static const char ver [] PROGMEM  = "OxyGauge 1.0.20";
 
 
 #ifdef ARDUINO_ARCH_ESP8266
@@ -1610,16 +1613,16 @@ void doPulse(unsigned long curr, funclist_t * f, void * ctx) {
         delay(5);
         digitalWrite(PWR_PIN, HIGH);
         long heap = ESP.getFreeHeap();
-        long ustack = cont_get_free_stack(&g_cont);
+        long ustack = cont_get_free_stack(g_pcont); //ESP.getFreeContStack().
         register uint32_t *sp asm("a1");
-        long stack = 4 * (sp - g_cont.stack);
+        long stack = 4 * (sp - g_pcont->stack);
         DBG_PRINT("Free Heap: %d\n",heap);
         DBG_PRINT("unmodified stack   = %4d\n", ustack);
 
         DBG_PRINT("current free stack = %4d\n", stack);
         //lprintf("\"memory\": {\"heap\":%d, \"context\":%d, \"stack\":%d }",
         //    heap, ustack, stack);
-         lprintf("M,%d,%d,%d\n",
+        lprintf("M,%d,%d,%d\n",
             heap, ustack, stack);
 }
 
@@ -1639,33 +1642,33 @@ void doCO2(unsigned long curr, funclist_t * f, void * ctx) {
 #endif
 
 void setupWdt () {
-  yield_add(NAMEOF(doData), NULL, 300, 0);
-  yield_add(NAMEOF(doLog), NULL, 1000, 0);
-  yield_add(NAMEOF(doPulse), NULL, 5000, 0);
+  yield_add(NAMEOF(doData), NULL, 300, 0, false, true);
+  yield_add(NAMEOF(doLog), NULL, 1000, 0, false, true);
+  yield_add(NAMEOF(doPulse), NULL, 5000, 0, false, true);
 #ifdef RELAY_PCF  
   if (gotpcf2) 
-    yield_add(NAMEOF(doPID), NULL, 0, 0);
+    yield_add(NAMEOF(doPID), NULL, 0, 0, false, true);
   else
 #endif
-    yield_add(NAMEOF(doPID), NULL, 200, 0);
+    yield_add(NAMEOF(doPID), NULL, 200, 0, false, true);
 
-  yield_add(NAMEOF(doTone), NULL, 0, 0);
+  yield_add(NAMEOF(doTone), NULL, 0, 0, false, true);
 #ifdef HUD_BLINK
-  yield_add(NAMEOF(doBlink), NULL, BLINK_CYC+200, 6500);
+  yield_add(NAMEOF(doBlink), NULL, BLINK_CYC+200, 6500, false, true);
 #endif
 #ifdef HUD
-  yield_add(NAMEOF(doHUD), NULL, 500, 0);
+  yield_add(NAMEOF(doHUD), NULL, 500, 0, false, true);
 #endif
-  yield_add(NAMEOF(doi2cPing), NULL, 12000, 0);
+  yield_add(NAMEOF(doi2cPing), NULL, 12000, 0, false, true);
 #ifdef DECOMP
-  yield_add(NAMEOF(doVPM), NULL, 5000, 0);
+  yield_add(NAMEOF(doVPM), NULL, 5000, 0, false, true);
 
-  yield_add(NAMEOF(doDecomp), NULL, 1500, 0);
-  yield_add(NAMEOF(doND), NULL, 3000, 0);
+  yield_add(NAMEOF(doDecomp), NULL, 1500, 0, false, true);
+  yield_add(NAMEOF(doND), NULL, 3000, 0, false, true);
 
 #endif
 #ifdef CO2
-  yield_add(NAMEOF(doCO2), NULL, 6000, 0);
+  yield_add(NAMEOF(doCO2), NULL, 6000, 0, false, true);
 
 #endif
 }
@@ -2492,7 +2495,7 @@ void bootInit(int old_didsleep) {
 
 
 #ifdef ARDUINO_ARCH_ESP8266
-extern "C" void ets_update_cpu_frequency(int freqmhz);
+//extern "C" void ets_update_cpu_frequency(int freqmhz);
 
 #if F_CPU != 160000000L
 #error "Needs 160MHz"
@@ -2739,12 +2742,12 @@ void doBlink(unsigned long curr, funclist_t * f, void * ctx) {
   if (/*rdy  >= 0 &&*/ last_hud_reset > 0 && millis()-last_hud_reset > 6000) {
       if (/*last_hud_rdy < 0 || */ hud_did_cyc == 0) {
           TRC_PRINT("%s\n","Blinky Cyc");
-          Serial.flush();
+          cons->flush();
         hud_set_cyc(BLINK_CYC, BLINK_DUR, BLINK_INT);
         hud_did_cyc = 1;
       }
       TRC_PRINT("%s\n","Blinky po2");
-          Serial.flush();
+          cons->flush();
 
       hud_set_blink();
     }
@@ -3658,7 +3661,7 @@ void OTAloop (bool is_ap) {
       t = disp.userInterfaceMessage("WiFi", "Leave WiFi Running?" , "", " Ok \n Cancel ");
        if (t == 1) {
           if (!wifi_bkgnd) {
-            yield_add(NAMEOF(doBkgndWifi), NULL, 250, 0);
+            yield_add(NAMEOF(doBkgndWifi), NULL, 250, 0, false, true);
             wifi_bkgnd = true;
           }
        } else {
